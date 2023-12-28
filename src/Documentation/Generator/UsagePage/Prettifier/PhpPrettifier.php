@@ -2,36 +2,32 @@
 
 namespace Documentation\Generator\UsagePage\Prettifier;
 
+use PhpCsFixer\Console\Application;
+
 class PhpPrettifier
 {
+    private static $CONFIGURATION_FILE = '.php-cs-fixer.dist.php';
     private static $instance = null;
 
-    private static $CONFIGURATION_PATH = 'phpcs.xml';
+    /**
+     * @var \Documentation\Generator\FileSystem\File
+     */
+    private $file;
 
-    private $config;
-    private $ruleset;
+    /**
+     * @var \PhpCsFixer\Console\Application
+     */
+    private $application;
+
+    private $configurationPath;
 
     private function __construct(\Documentation\Generator\Configuration $configuration)
     {
-        if (defined('PHP_CODESNIFFER_VERBOSITY') === false) {
-            define('PHP_CODESNIFFER_VERBOSITY', false);
-        }
-        if (defined('PHP_CODESNIFFER_CBF') === false) {
-            define('PHP_CODESNIFFER_CBF', true);
-        }
+        $this->file = $configuration->getFile();
+        $this->configurationPath = $configuration->getRootDirPath() . DIRECTORY_SEPARATOR . self::$CONFIGURATION_FILE;
 
-        $config = new \PHP_CodeSniffer\Config([
-            $configuration->getRootDirPath() . DIRECTORY_SEPARATOR . self::$CONFIGURATION_PATH
-        ]);
-        $config->stdin = true;
-        $config->standards = ['Squiz'];
-
-        $runner = new \PHP_CodeSniffer\Runner();
-        $runner->config = $config;
-        $runner->init();
-
-        $this->config = $config;
-        $this->ruleset = $runner->ruleset;
+        $this->application = new Application();
+        $this->application->setAutoExit(false);
     }
 
     /**
@@ -40,27 +36,46 @@ class PhpPrettifier
     public static function getInstance(
         \Documentation\Generator\Configuration $configuration
     ): \Documentation\Generator\UsagePage\Prettifier\PhpPrettifier {
-        if (static::$instance === null) {
-            static::$instance = new static($configuration);
+        if (self::$instance === null) {
+            self::$instance = new self($configuration);
         }
 
-        return static::$instance;
+        return self::$instance;
     }
-
 
     public function prettify($source)
     {
+        // Write source to temporary file
+        $tmpFile = $this->file->writeTmpFile('phpcsfixer', $source);
 
-        $this->config->stdinContent = $source;
-        $file = new \Documentation\Generator\UsagePage\Prettifier\SourceFile(
-            $source,
-            $this->ruleset,
-            $this->config
+        try {
+            $prettyfiedSource = $this->executePhpCsFixer($tmpFile);
+            return $prettyfiedSource;
+        } finally {
+            $this->file->removeFile($tmpFile);
+        }
+    }
+
+    private function executePhpCsFixer($tmpFile)
+    {
+        $input = new \Symfony\Component\Console\Input\ArrayInput(
+            [
+                'command' => 'fix',
+                'path' => [$tmpFile],
+                '--dry-run' => false,
+                '--config' => $this->configurationPath,
+            ]
         );
 
-        $file->process();
-        $file->fixer->fixFile();
+        $output = new \Symfony\Component\Console\Output\BufferedOutput();
 
-        return $file->getContent();
+        $this->application->run(
+            $input,
+            $output
+        );
+
+        $prettyfiedSource = trim($this->file->readFile($tmpFile));
+
+        return $prettyfiedSource;
     }
 }

@@ -46,10 +46,11 @@ class Menu extends \Laminas\View\Helper\Navigation\Menu
      */
     protected function prepareContainer(&$container = null)
     {
-        $this->parseContainer($container);
         if (null === $container) {
             $container = $this->getContainer();
         }
+
+        $this->parseContainer($container);
 
         // Create iterator
         $iterator = new \RecursiveIteratorIterator(
@@ -291,6 +292,7 @@ class Menu extends \Laminas\View\Helper\Navigation\Menu
             );
         }
 
+        // Inject class attribute in link
         if ($itemClasses) {
             $attributes = $this->getView()->plugin('htmlattributes')->__invoke(['class' =>  $itemClasses]);
 
@@ -303,6 +305,7 @@ class Menu extends \Laminas\View\Helper\Navigation\Menu
             );
         }
 
+        // Inject aria-current attribute in link if page is current
         if (!empty($options['page'])) {
             $content = preg_replace(
                 '/(<a.*aria-current=")(true)(".*)/imU',

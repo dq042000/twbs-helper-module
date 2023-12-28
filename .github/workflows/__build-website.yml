@@ -1,0 +1,65 @@
+on:
+  workflow_call:
+    inputs:
+      publish:
+        default: false
+        type: boolean
+
+jobs:
+  generate-documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup PHP, with composer and extensions
+        uses: ./.github/actions/setup-php
+        with:
+          php-version: 8.3
+
+      - name: 📃 Generate documentation
+        run: composer generate-docs
+
+      - name: 📦 Upload generated documentation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: website/docs
+
+  build-website:
+    needs: generate-documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: documentation
+
+      - uses: actions/setup-node@v4.0.1
+        with:
+          node-version-file: ".nvmrc"
+          cache: yarn
+          cache-dependency-path: website/yarn.lock
+
+      - name: ⚙️ Install Dependencies
+        working-directory: website
+        run: yarn install --frozen-lockfile
+
+      - name: ♻️ Webpack cache
+        uses: actions/cache@v3
+        with:
+          path: website/node_modules/.cache/webpack
+          key: ${{ runner.os }}-webpack-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-webpack-
+
+      - name: 🏗️ Build website
+        run: yarn build
+        working-directory: website
+
+      - name: 📦 Upload website build artifact
+        if: inputs.publish
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/build

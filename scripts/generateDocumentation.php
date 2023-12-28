@@ -14,40 +14,42 @@ if (false === (include $composerAutoloadPath)) {
     ));
 }
 
-// PHP Code Sniffer autoloading
-if (!file_exists($phpCodeSnifferAutoloadPath = __DIR__ . '/../vendor/squizlabs/php_codesniffer/autoload.php')) {
-    throw new \LogicException('PHP Code Sniffer autoload file "' . $phpCodeSnifferAutoloadPath . '" does not exist');
+// Tools autoloading
+if (!file_exists($toolsAutoloadPath = __DIR__ . '/../tools/vendor/autoload.php')) {
+    throw new \LogicException('Tools autoload file "' . $toolsAutoloadPath . '" does not exist');
 }
 
-if (false === (include $phpCodeSnifferAutoloadPath)) {
+if (false === (include $toolsAutoloadPath)) {
     throw new \LogicException(sprintf(
-        'An error occured while including PHP Code Sniffer autoload file "%s"',
-        $phpCodeSnifferAutoloadPath
+        'An error occured while including tools autoload file "%s"',
+        $toolsAutoloadPath
     ));
 }
 
 $rootDirPath = dirname(__DIR__);
 $testsDirPath = $rootDirPath . '/tests/TestSuite/Documentation/Tests';
-$bootstrapVersion = '5.1';
 $maxNestedDir = 2;
+
+$file = new \Documentation\Generator\FileSystem\Local\File();
+
+$bootstrapVersionResolver = new \Documentation\Generator\BootstrapVersionResolver($file, $rootDirPath);
 
 $configuration = new \Documentation\Generator\Configuration(
     $rootDirPath,
     $testsDirPath,
-    $bootstrapVersion,
-    $maxNestedDir
+    $bootstrapVersionResolver->getBootstrapVersion(),
+    $maxNestedDir,
+    $file
 );
 
-$file = new \Documentation\Generator\FileSystem\Local\File();
 
-$homePageGenerator = new \Documentation\Generator\HomePageGenerator($configuration, $file);
+$homePageGenerator = new \Documentation\Generator\HomePageGenerator($configuration);
 $homePageGenerator->generate();
 
 $testConfigsLoader = new \Documentation\Test\ConfigsLoader($testsDirPath);
 
 $usagePagesGenerator = new \Documentation\Generator\UsagePage\UsagePagesGenerator(
     $configuration,
-    $file,
     $testConfigsLoader->loadDocumentationTestConfigs(),
 );
 $usagePagesGenerator->generate();

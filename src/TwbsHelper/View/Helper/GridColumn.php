@@ -96,7 +96,8 @@ class GridColumn extends \TwbsHelper\View\Helper\AbstractHtmlElement
             $order = $optionsAndAttributes['order'];
             if (
                 !in_array($order, self::$allowedOrder)
-                && (!is_int($order)
+                && (
+                    !is_int($order)
                     || $order < 1
                     || $order > 12
                 )
@@ -110,7 +111,7 @@ class GridColumn extends \TwbsHelper\View\Helper\AbstractHtmlElement
             }
 
             $attributes['class']->merge([
-                $this->getView()->plugin('htmlClass')->getPrefixedClass($order, 'order')
+                $this->getView()->plugin('htmlClass')->getPrefixedClass($order, 'order'),
             ]);
         }
 
